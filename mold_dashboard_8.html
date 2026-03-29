@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mold Sensor Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1a1a1a; --bg2: #222222; --bg3: #2a2a2a;
+      --border: rgba(255,255,255,0.07);
+      --text-primary: #e8e8e8; --text-secondary: #888; --text-tertiary: #555;
+      --green: #1D9E75; --orange: #BA7517; --red: #A32D2D; --radius: 10px;
+    }
+    body { background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 14px; min-height: 100vh; }
+    .page { max-width: 560px; margin: 0 auto; padding: 28px 20px 60px; }
+    .status-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .status-left { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+    .dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .last-update { color: var(--text-primary); font-weight: 500; }
+    .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 18px; letter-spacing: 2px; padding: 4px 8px; }
+    .section-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+    .metric { background: var(--bg2); border-radius: var(--radius); padding: 18px 16px; }
+    .metric-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+    .metric-value { font-size: 36px; font-weight: 300; color: var(--text-primary); line-height: 1; font-family: 'DM Mono', monospace; }
+    .metric-unit { font-size: 16px; color: var(--text-secondary); font-weight: 400; }
+    .risk-card { background: var(--bg2); border-radius: var(--radius); padding: 18px 16px; margin-bottom: 28px; }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 14px 0; }
+    .ppm-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .ppm-label { font-size: 13px; color: var(--text-secondary); }
+    .ppm-right { display: flex; align-items: center; gap: 8px; }
+    .ppm-value { font-size: 24px; font-weight: 500; font-family: 'DM Mono', monospace; }
+    .ppm-unit { font-size: 12px; color: var(--text-secondary); }
+    .risk-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+    .note-box {
+      background: rgba(29,158,117,0.07);
+      border: 0.5px solid rgba(29,158,117,0.25);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .note-box strong { color: var(--text-primary); font-weight: 500; }
+    .note-box em { color: #4ec99a; font-style: italic; }
+    .note-label {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4ec99a;
+      background: rgba(29,158,117,0.15);
+      padding: 1px 7px;
+      border-radius: 4px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .badge-low   { background: rgba(210,190,0,0.18);  color: #d4c040; }
+    .badge-med   { background: rgba(186,117,23,0.18); color: #e09840; }
+    .badge-high  { background: rgba(163,45,45,0.18);  color: #e06060; }
+    .bar-wrapper { position: relative; margin-bottom: 6px; }
+    .bar-track { height: 10px; border-radius: 5px; background: var(--bg3); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease, background 0.6s ease; }
+    .bar-overlay { position: absolute; inset: -6px -2px; background: var(--bg2); border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--text-secondary); letter-spacing: 0.04em; transition: opacity 0.5s ease; }
+    .bar-overlay.hidden { opacity: 0; pointer-events: none; }
+    .reading-dots span { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary); animation: dotpulse 1.2s infinite; }
+    .reading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .reading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotpulse { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+    .timer-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .timer-badge { font-size: 11px; color: var(--text-tertiary); font-family: 'DM Mono', monospace; background: var(--bg3); padding: 2px 8px; border-radius: 4px; }
+    .bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); }
+    .log-section { background: var(--bg2); border-radius: var(--radius); padding: 18px 16px; }
+    .log-header { display: grid; grid-template-columns: 100px 70px 70px 1fr 1fr; font-size: 11px; color: var(--text-tertiary); padding-bottom: 10px; border-bottom: 0.5px solid var(--border); margin-bottom: 2px; }
+    .log-header span:last-child, .log-header span:nth-child(4) { text-align: right; }
+    .log-entry { display: grid; grid-template-columns: 100px 70px 70px 1fr 1fr; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: var(--text-tertiary); font-family: 'DM Mono', monospace; font-size: 12px; }
+    .log-temp { color: var(--text-primary); font-weight: 500; }
+    .log-hum { color: var(--text-secondary); }
+    .log-mq { text-align: right; }
+    .conc-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: 'DM Mono', monospace; background: rgba(29,158,117,0.15); color: #4ec99a; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="dot-live"></span>
+      <span>Live — last update <span class="last-update" id="last-update">just now</span></span>
+    </div>
+    <button class="menu-btn">···</button>
+  </div>
+
+  <div class="section-label">Sensor Readings</div>
+  <div class="grid-2">
+    <div class="metric">
+      <div class="metric-label">Temperature</div>
+      <div class="metric-value" id="temp-val">—<span class="metric-unit">°C</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Humidity</div>
+      <div class="metric-value" id="hum-val">—<span class="metric-unit">%</span></div>
+    </div>
+  </div>
+
+  <div class="note-box">
+    <span class="note-label">Note</span>
+    The ideal ranges for <em>Aspergillus Tubingensis</em> mold growth are a humidity of <strong>70–90%</strong> and a temperature of <strong>30–45°C</strong>.
+  </div>
+
+  <div class="section-label">Mold Risk</div>
+  <div class="risk-card">
+    <div class="ppm-row">
+      <span class="ppm-label">MQ138 / MQ3 (ppm)</span>
+      <div class="ppm-right">
+        <span class="ppm-value" id="mq138-val">—</span>
+        <span class="ppm-unit">/ <span id="mq3-val">—</span></span>
+        <span class="risk-badge badge-med" id="risk-badge">—</span>
+      </div>
+    </div>
+    <div class="timer-row">
+      <span style="font-size:13px; color:var(--text-secondary);">Mold risk level</span>
+      <span class="timer-badge" id="timer-badge">10:00</span>
+    </div>
+    <div class="bar-wrapper">
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-fill" style="width:0%; background:#BA7517;"></div>
+      </div>
+      <div class="bar-overlay" id="bar-overlay">
+        <span>Reading data for <span id="overlay-countdown">15</span> seconds</span>
+        <span class="reading-dots"><span></span><span></span><span></span></span>
+      </div>
+    </div>
+    <div class="bar-labels"><span>No Risk</span><span>Low</span><span>Medium</span><span>High</span></div>
+  </div>
+
+  <div class="section-label">Recent Readings</div>
+  <div class="log-section">
+    <div class="log-header">
+      <span>Time</span><span>Temp</span><span>Humidity</span>
+      <span style="text-align:right;">MQ138</span>
+      <span style="text-align:right;">MQ3</span>
+    </div>
+    <div id="log-list"></div>
+  </div>
+
+</div>
+
+<script>
+  const NEG_CONTROL = [{"seconds": 0.8, "mq138": 11.33, "mq3": 15.97}, {"seconds": 3.1, "mq138": 15.8, "mq3": 21.86}, {"seconds": 5.3, "mq138": 11.52, "mq3": 15.71}, {"seconds": 7.5, "mq138": 14.38, "mq3": 18.94}, {"seconds": 9.8, "mq138": 11.49, "mq3": 15.74}, {"seconds": 12.0, "mq138": 11.17, "mq3": 15.57}, {"seconds": 14.3, "mq138": 11.69, "mq3": 16.24}, {"seconds": 16.5, "mq138": 11.43, "mq3": 16.08}, {"seconds": 18.7, "mq138": 11.33, "mq3": 15.77}, {"seconds": 21.0, "mq138": 11.65, "mq3": 16.38}, {"seconds": 23.2, "mq138": 11.09, "mq3": 15.67}, {"seconds": 25.5, "mq138": 11.73, "mq3": 16.38}, {"seconds": 27.7, "mq138": 11.59, "mq3": 16.05}, {"seconds": 29.9, "mq138": 11.95, "mq3": 16.49}, {"seconds": 32.2, "mq138": 11.45, "mq3": 16.17}, {"seconds": 34.4, "mq138": 11.56, "mq3": 16.43}, {"seconds": 36.7, "mq138": 11.33, "mq3": 15.68}, {"seconds": 38.9, "mq138": 11.48, "mq3": 16.16}, {"seconds": 41.2, "mq138": 11.2, "mq3": 15.87}, {"seconds": 43.4, "mq138": 10.79, "mq3": 15.34}, {"seconds": 45.6, "mq138": 11.26, "mq3": 15.68}, {"seconds": 47.9, "mq138": 11.22, "mq3": 15.48}, {"seconds": 50.1, "mq138": 10.96, "mq3": 15.27}, {"seconds": 52.4, "mq138": 11.16, "mq3": 15.72}, {"seconds": 54.6, "mq138": 11.11, "mq3": 15.8}, {"seconds": 56.8, "mq138": 11.28, "mq3": 15.8}, {"seconds": 59.1, "mq138": 10.92, "mq3": 15.42}, {"seconds": 61.3, "mq138": 10.96, "mq3": 15.36}, {"seconds": 63.6, "mq138": 11.15, "mq3": 15.5}, {"seconds": 65.8, "mq138": 11.12, "mq3": 15.7}, {"seconds": 68.0, "mq138": 11.16, "mq3": 15.73}, {"seconds": 70.3, "mq138": 11.2, "mq3": 15.85}, {"seconds": 72.5, "mq138": 11.15, "mq3": 15.5}, {"seconds": 74.8, "mq138": 10.98, "mq3": 15.36}, {"seconds": 77.0, "mq138": 10.66, "mq3": 15.07}, {"seconds": 79.2, "mq138": 10.6, "mq3": 15.24}, {"seconds": 81.5, "mq138": 11.13, "mq3": 15.8}, {"seconds": 83.7, "mq138": 11.19, "mq3": 15.8}, {"seconds": 86.0, "mq138": 11.01, "mq3": 15.37}, {"seconds": 88.2, "mq138": 10.6, "mq3": 15.33}, {"seconds": 90.4, "mq138": 11.1, "mq3": 15.6}, {"seconds": 92.7, "mq138": 11.17, "mq3": 15.87}, {"seconds": 94.9, "mq138": 10.94, "mq3": 15.4}, {"seconds": 97.2, "mq138": 10.85, "mq3": 15.3}, {"seconds": 99.4, "mq138": 10.82, "mq3": 15.5}, {"seconds": 101.6, "mq138": 11.15, "mq3": 15.6}, {"seconds": 103.9, "mq138": 11.22, "mq3": 15.88}, {"seconds": 106.1, "mq138": 10.83, "mq3": 15.3}, {"seconds": 108.4, "mq138": 10.88, "mq3": 15.16}, {"seconds": 110.6, "mq138": 11.04, "mq3": 15.61}, {"seconds": 112.8, "mq138": 11.24, "mq3": 15.71}, {"seconds": 115.1, "mq138": 11.15, "mq3": 15.58}, {"seconds": 117.3, "mq138": 11.13, "mq3": 15.71}, {"seconds": 119.6, "mq138": 10.71, "mq3": 15.26}, {"seconds": 121.8, "mq138": 11.17, "mq3": 15.7}, {"seconds": 124.0, "mq138": 11.13, "mq3": 15.7}, {"seconds": 126.3, "mq138": 11.28, "mq3": 15.87}, {"seconds": 128.5, "mq138": 10.98, "mq3": 15.81}, {"seconds": 130.8, "mq138": 10.98, "mq3": 15.45}, {"seconds": 133.0, "mq138": 10.9, "mq3": 15.55}, {"seconds": 135.2, "mq138": 11.0, "mq3": 15.34}, {"seconds": 137.5, "mq138": 10.82, "mq3": 15.56}, {"seconds": 139.7, "mq138": 10.83, "mq3": 15.41}, {"seconds": 141.9, "mq138": 11.33, "mq3": 15.99}, {"seconds": 144.2, "mq138": 11.12, "mq3": 15.54}, {"seconds": 146.4, "mq138": 11.34, "mq3": 15.72}, {"seconds": 148.7, "mq138": 10.98, "mq3": 15.46}, {"seconds": 150.9, "mq138": 10.96, "mq3": 15.54}, {"seconds": 153.1, "mq138": 11.29, "mq3": 15.85}, {"seconds": 155.4, "mq138": 11.11, "mq3": 15.74}, {"seconds": 157.6, "mq138": 10.99, "mq3": 15.44}, {"seconds": 159.9, "mq138": 11.34, "mq3": 16.15}, {"seconds": 162.1, "mq138": 10.8, "mq3": 15.3}, {"seconds": 164.3, "mq138": 11.28, "mq3": 15.94}, {"seconds": 166.6, "mq138": 11.01, "mq3": 15.57}, {"seconds": 168.8, "mq138": 10.66, "mq3": 15.25}, {"seconds": 171.1, "mq138": 11.22, "mq3": 15.87}, {"seconds": 173.3, "mq138": 10.75, "mq3": 15.04}, {"seconds": 175.5, "mq138": 11.21, "mq3": 15.71}, {"seconds": 177.8, "mq138": 11.05, "mq3": 15.61}, {"seconds": 180.0, "mq138": 11.11, "mq3": 15.86}, {"seconds": 182.3, "mq138": 10.83, "mq3": 15.42}, {"seconds": 184.5, "mq138": 11.15, "mq3": 15.79}, {"seconds": 186.7, "mq138": 11.06, "mq3": 15.7}, {"seconds": 189.0, "mq138": 11.05, "mq3": 15.47}, {"seconds": 191.2, "mq138": 11.15, "mq3": 15.88}, {"seconds": 193.5, "mq138": 11.31, "mq3": 15.85}, {"seconds": 195.7, "mq138": 10.99, "mq3": 15.39}, {"seconds": 197.9, "mq138": 11.22, "mq3": 15.59}, {"seconds": 200.2, "mq138": 11.06, "mq3": 15.67}, {"seconds": 202.4, "mq138": 11.14, "mq3": 15.82}, {"seconds": 204.7, "mq138": 11.01, "mq3": 15.65}, {"seconds": 206.9, "mq138": 11.14, "mq3": 15.67}, {"seconds": 209.1, "mq138": 11.34, "mq3": 15.99}, {"seconds": 211.4, "mq138": 10.63, "mq3": 15.12}, {"seconds": 213.6, "mq138": 10.99, "mq3": 15.77}, {"seconds": 215.9, "mq138": 10.93, "mq3": 15.5}, {"seconds": 218.1, "mq138": 11.22, "mq3": 15.72}, {"seconds": 220.3, "mq138": 10.99, "mq3": 15.55}, {"seconds": 222.6, "mq138": 11.16, "mq3": 15.8}, {"seconds": 224.8, "mq138": 11.35, "mq3": 15.97}, {"seconds": 227.1, "mq138": 10.71, "mq3": 15.05}, {"seconds": 229.3, "mq138": 11.17, "mq3": 15.85}, {"seconds": 231.5, "mq138": 11.12, "mq3": 15.74}, {"seconds": 233.8, "mq138": 11.46, "mq3": 15.95}, {"seconds": 236.0, "mq138": 11.34, "mq3": 15.99}, {"seconds": 238.3, "mq138": 10.76, "mq3": 15.32}, {"seconds": 240.5, "mq138": 11.33, "mq3": 15.72}, {"seconds": 242.7, "mq138": 11.14, "mq3": 15.62}, {"seconds": 245.0, "mq138": 10.8, "mq3": 15.46}, {"seconds": 247.2, "mq138": 11.18, "mq3": 15.91}, {"seconds": 249.5, "mq138": 10.74, "mq3": 15.1}, {"seconds": 251.7, "mq138": 11.28, "mq3": 15.68}, {"seconds": 253.9, "mq138": 11.31, "mq3": 15.85}, {"seconds": 256.2, "mq138": 10.79, "mq3": 15.15}, {"seconds": 258.4, "mq138": 11.25, "mq3": 15.72}, {"seconds": 260.7, "mq138": 11.29, "mq3": 15.9}, {"seconds": 262.9, "mq138": 10.9, "mq3": 15.46}, {"seconds": 265.1, "mq138": 10.91, "mq3": 15.61}, {"seconds": 267.4, "mq138": 11.29, "mq3": 15.67}, {"seconds": 269.6, "mq138": 11.12, "mq3": 15.68}, {"seconds": 271.9, "mq138": 11.08, "mq3": 15.59}, {"seconds": 274.1, "mq138": 11.3, "mq3": 16.01}, {"seconds": 276.3, "mq138": 11.22, "mq3": 15.76}, {"seconds": 278.6, "mq138": 10.96, "mq3": 15.56}, {"seconds": 280.8, "mq138": 11.06, "mq3": 15.48}, {"seconds": 283.1, "mq138": 11.33, "mq3": 15.9}, {"seconds": 285.3, "mq138": 10.76, "mq3": 15.06}, {"seconds": 287.5, "mq138": 11.37, "mq3": 15.87}, {"seconds": 289.8, "mq138": 11.33, "mq3": 15.89}, {"seconds": 292.0, "mq138": 11.12, "mq3": 15.62}, {"seconds": 294.3, "mq138": 11.22, "mq3": 15.8}, {"seconds": 296.5, "mq138": 11.45, "mq3": 15.96}, {"seconds": 298.7, "mq138": 10.89, "mq3": 15.68}, {"seconds": 301.0, "mq138": 11.25, "mq3": 15.99}, {"seconds": 303.2, "mq138": 10.93, "mq3": 15.46}, {"seconds": 305.5, "mq138": 11.2, "mq3": 15.68}, {"seconds": 307.7, "mq138": 11.16, "mq3": 15.7}, {"seconds": 309.9, "mq138": 11.22, "mq3": 15.85}, {"seconds": 312.2, "mq138": 11.09, "mq3": 15.8}, {"seconds": 314.4, "mq138": 11.33, "mq3": 15.76}, {"seconds": 316.7, "mq138": 11.23, "mq3": 15.62}, {"seconds": 318.9, "mq138": 11.3, "mq3": 15.88}, {"seconds": 321.1, "mq138": 11.33, "mq3": 15.99}, {"seconds": 323.4, "mq138": 11.03, "mq3": 15.68}, {"seconds": 325.6, "mq138": 11.19, "mq3": 15.89}, {"seconds": 327.9, "mq138": 11.36, "mq3": 16.01}, {"seconds": 330.1, "mq138": 10.74, "mq3": 15.13}, {"seconds": 332.3, "mq138": 11.24, "mq3": 15.83}, {"seconds": 334.6, "mq138": 11.03, "mq3": 15.45}, {"seconds": 336.8, "mq138": 11.17, "mq3": 16.03}, {"seconds": 339.1, "mq138": 10.99, "mq3": 15.61}, {"seconds": 341.3, "mq138": 10.06, "mq3": 14.17}];
+  const LIVE_DATA = [{"seconds": 0.9, "mq138": 11.35, "mq3": 16.14}, {"seconds": 3.1, "mq138": 12.11, "mq3": 16.75}, {"seconds": 5.4, "mq138": 11.78, "mq3": 16.4}, {"seconds": 7.6, "mq138": 12.26, "mq3": 16.99}, {"seconds": 9.9, "mq138": 11.8, "mq3": 16.42}, {"seconds": 12.1, "mq138": 12.28, "mq3": 17.19}, {"seconds": 14.3, "mq138": 12.04, "mq3": 16.79}, {"seconds": 16.6, "mq138": 12.07, "mq3": 16.85}, {"seconds": 18.8, "mq138": 11.89, "mq3": 16.9}, {"seconds": 21.1, "mq138": 12.35, "mq3": 17.15}, {"seconds": 23.3, "mq138": 12.29, "mq3": 16.98}, {"seconds": 25.5, "mq138": 11.56, "mq3": 16.26}, {"seconds": 27.8, "mq138": 11.59, "mq3": 16.29}, {"seconds": 30.0, "mq138": 11.58, "mq3": 16.2}, {"seconds": 32.3, "mq138": 11.54, "mq3": 16.33}, {"seconds": 34.5, "mq138": 11.4, "mq3": 16.36}, {"seconds": 36.7, "mq138": 11.64, "mq3": 16.25}, {"seconds": 39.0, "mq138": 11.79, "mq3": 16.55}, {"seconds": 41.2, "mq138": 11.76, "mq3": 16.5}, {"seconds": 43.5, "mq138": 11.73, "mq3": 16.22}, {"seconds": 45.7, "mq138": 11.57, "mq3": 16.03}, {"seconds": 48.0, "mq138": 11.72, "mq3": 16.61}, {"seconds": 50.2, "mq138": 11.43, "mq3": 15.83}, {"seconds": 52.4, "mq138": 12.01, "mq3": 16.3}, {"seconds": 54.7, "mq138": 11.88, "mq3": 16.5}, {"seconds": 56.9, "mq138": 11.22, "mq3": 15.9}, {"seconds": 59.2, "mq138": 11.61, "mq3": 16.72}, {"seconds": 61.4, "mq138": 11.71, "mq3": 16.32}, {"seconds": 63.6, "mq138": 11.94, "mq3": 16.99}, {"seconds": 65.9, "mq138": 11.38, "mq3": 16.28}, {"seconds": 68.1, "mq138": 11.66, "mq3": 16.32}, {"seconds": 70.4, "mq138": 11.42, "mq3": 16.28}, {"seconds": 72.6, "mq138": 11.24, "mq3": 15.63}, {"seconds": 74.8, "mq138": 11.81, "mq3": 16.34}, {"seconds": 77.1, "mq138": 11.72, "mq3": 16.2}, {"seconds": 79.3, "mq138": 11.27, "mq3": 15.86}, {"seconds": 81.6, "mq138": 11.55, "mq3": 16.13}, {"seconds": 83.8, "mq138": 11.54, "mq3": 16.39}, {"seconds": 86.0, "mq138": 11.29, "mq3": 16.05}, {"seconds": 88.3, "mq138": 11.71, "mq3": 16.45}, {"seconds": 90.5, "mq138": 11.71, "mq3": 16.18}, {"seconds": 92.8, "mq138": 11.37, "mq3": 15.93}, {"seconds": 95.0, "mq138": 11.41, "mq3": 16.05}, {"seconds": 97.2, "mq138": 11.79, "mq3": 16.61}, {"seconds": 99.5, "mq138": 11.56, "mq3": 16.29}, {"seconds": 101.7, "mq138": 11.69, "mq3": 16.42}, {"seconds": 104.0, "mq138": 11.87, "mq3": 16.56}, {"seconds": 106.2, "mq138": 11.91, "mq3": 16.45}, {"seconds": 108.4, "mq138": 11.83, "mq3": 16.4}, {"seconds": 110.7, "mq138": 11.69, "mq3": 16.55}, {"seconds": 112.9, "mq138": 11.81, "mq3": 16.49}, {"seconds": 115.2, "mq138": 11.5, "mq3": 16.28}, {"seconds": 117.4, "mq138": 11.63, "mq3": 16.33}, {"seconds": 119.6, "mq138": 11.53, "mq3": 16.22}, {"seconds": 121.9, "mq138": 11.66, "mq3": 16.1}, {"seconds": 124.1, "mq138": 11.67, "mq3": 16.27}, {"seconds": 126.4, "mq138": 11.47, "mq3": 16.35}, {"seconds": 128.6, "mq138": 11.5, "mq3": 16.09}, {"seconds": 130.8, "mq138": 11.79, "mq3": 16.45}, {"seconds": 133.1, "mq138": 11.76, "mq3": 16.43}, {"seconds": 135.3, "mq138": 11.66, "mq3": 16.31}, {"seconds": 137.6, "mq138": 11.27, "mq3": 15.75}, {"seconds": 139.8, "mq138": 11.72, "mq3": 16.21}, {"seconds": 142.0, "mq138": 11.39, "mq3": 16.0}, {"seconds": 144.3, "mq138": 11.51, "mq3": 15.99}, {"seconds": 146.5, "mq138": 11.74, "mq3": 16.67}, {"seconds": 148.8, "mq138": 11.72, "mq3": 16.28}, {"seconds": 151.0, "mq138": 11.83, "mq3": 16.58}, {"seconds": 153.2, "mq138": 11.94, "mq3": 16.51}, {"seconds": 155.5, "mq138": 11.38, "mq3": 15.94}, {"seconds": 157.7, "mq138": 11.42, "mq3": 16.05}, {"seconds": 160.0, "mq138": 11.68, "mq3": 16.28}, {"seconds": 162.2, "mq138": 11.75, "mq3": 15.93}, {"seconds": 164.4, "mq138": 11.84, "mq3": 16.44}, {"seconds": 166.7, "mq138": 11.44, "mq3": 16.05}, {"seconds": 168.9, "mq138": 11.74, "mq3": 16.42}, {"seconds": 171.2, "mq138": 11.86, "mq3": 16.28}, {"seconds": 173.4, "mq138": 11.59, "mq3": 16.38}, {"seconds": 175.6, "mq138": 11.86, "mq3": 16.24}, {"seconds": 177.9, "mq138": 11.56, "mq3": 16.44}, {"seconds": 180.1, "mq138": 11.78, "mq3": 16.33}, {"seconds": 182.4, "mq138": 11.35, "mq3": 16.21}, {"seconds": 184.6, "mq138": 11.45, "mq3": 16.2}, {"seconds": 186.8, "mq138": 11.58, "mq3": 16.33}, {"seconds": 189.1, "mq138": 11.74, "mq3": 16.65}, {"seconds": 191.3, "mq138": 11.59, "mq3": 16.46}, {"seconds": 193.6, "mq138": 11.76, "mq3": 16.49}, {"seconds": 195.8, "mq138": 11.56, "mq3": 16.22}, {"seconds": 198.0, "mq138": 11.42, "mq3": 15.91}, {"seconds": 200.3, "mq138": 11.51, "mq3": 16.02}, {"seconds": 202.5, "mq138": 11.67, "mq3": 16.54}, {"seconds": 204.8, "mq138": 11.66, "mq3": 16.46}, {"seconds": 207.0, "mq138": 11.74, "mq3": 16.16}, {"seconds": 209.2, "mq138": 11.51, "mq3": 16.35}, {"seconds": 211.5, "mq138": 11.74, "mq3": 16.28}, {"seconds": 213.7, "mq138": 11.78, "mq3": 16.19}, {"seconds": 216.0, "mq138": 11.79, "mq3": 16.55}, {"seconds": 218.2, "mq138": 11.81, "mq3": 16.31}, {"seconds": 220.4, "mq138": 11.79, "mq3": 16.33}, {"seconds": 222.7, "mq138": 11.79, "mq3": 16.28}, {"seconds": 224.9, "mq138": 11.84, "mq3": 16.57}, {"seconds": 227.2, "mq138": 11.68, "mq3": 16.33}, {"seconds": 229.4, "mq138": 11.73, "mq3": 16.51}, {"seconds": 231.6, "mq138": 11.7, "mq3": 16.37}, {"seconds": 233.9, "mq138": 11.56, "mq3": 16.33}, {"seconds": 236.1, "mq138": 11.76, "mq3": 16.38}, {"seconds": 238.4, "mq138": 11.75, "mq3": 16.16}, {"seconds": 240.6, "mq138": 11.3, "mq3": 16.07}, {"seconds": 242.8, "mq138": 11.22, "mq3": 15.88}, {"seconds": 245.1, "mq138": 11.69, "mq3": 15.95}, {"seconds": 247.3, "mq138": 11.37, "mq3": 16.39}, {"seconds": 249.6, "mq138": 11.72, "mq3": 16.56}, {"seconds": 251.8, "mq138": 11.83, "mq3": 16.12}, {"seconds": 254.0, "mq138": 11.44, "mq3": 16.04}, {"seconds": 256.3, "mq138": 11.9, "mq3": 16.34}, {"seconds": 258.5, "mq138": 11.46, "mq3": 16.45}, {"seconds": 260.8, "mq138": 11.75, "mq3": 16.46}, {"seconds": 263.0, "mq138": 11.43, "mq3": 15.88}, {"seconds": 265.2, "mq138": 11.64, "mq3": 16.53}, {"seconds": 267.5, "mq138": 11.49, "mq3": 15.93}, {"seconds": 269.7, "mq138": 11.6, "mq3": 16.14}, {"seconds": 272.0, "mq138": 11.43, "mq3": 16.19}, {"seconds": 274.2, "mq138": 11.48, "mq3": 16.08}, {"seconds": 276.4, "mq138": 11.51, "mq3": 16.37}, {"seconds": 278.7, "mq138": 11.4, "mq3": 15.76}, {"seconds": 280.9, "mq138": 11.68, "mq3": 16.06}, {"seconds": 283.2, "mq138": 11.48, "mq3": 16.32}, {"seconds": 285.4, "mq138": 11.59, "mq3": 16.38}, {"seconds": 287.6, "mq138": 11.46, "mq3": 15.84}, {"seconds": 289.9, "mq138": 11.66, "mq3": 16.31}, {"seconds": 292.1, "mq138": 11.59, "mq3": 15.92}, {"seconds": 294.4, "mq138": 11.41, "mq3": 15.91}, {"seconds": 296.6, "mq138": 11.75, "mq3": 16.48}, {"seconds": 298.9, "mq138": 11.46, "mq3": 16.36}, {"seconds": 301.1, "mq138": 11.25, "mq3": 15.55}, {"seconds": 303.4, "mq138": 11.53, "mq3": 15.85}, {"seconds": 305.6, "mq138": 11.97, "mq3": 16.5}, {"seconds": 307.8, "mq138": 11.52, "mq3": 16.21}, {"seconds": 310.1, "mq138": 11.81, "mq3": 16.58}, {"seconds": 312.3, "mq138": 11.25, "mq3": 16.14}, {"seconds": 314.5, "mq138": 11.47, "mq3": 16.38}, {"seconds": 316.8, "mq138": 11.42, "mq3": 16.09}, {"seconds": 319.0, "mq138": 11.55, "mq3": 16.11}, {"seconds": 321.3, "mq138": 11.58, "mq3": 16.27}, {"seconds": 323.5, "mq138": 11.72, "mq3": 16.65}, {"seconds": 325.7, "mq138": 11.8, "mq3": 16.22}, {"seconds": 328.0, "mq138": 11.78, "mq3": 16.39}, {"seconds": 330.2, "mq138": 11.59, "mq3": 16.56}, {"seconds": 332.5, "mq138": 11.16, "mq3": 15.79}, {"seconds": 334.7, "mq138": 11.29, "mq3": 15.86}, {"seconds": 336.9, "mq138": 11.17, "mq3": 15.82}, {"seconds": 339.2, "mq138": 11.53, "mq3": 16.16}, {"seconds": 341.4, "mq138": 11.41, "mq3": 16.34}, {"seconds": 343.7, "mq138": 11.78, "mq3": 16.46}, {"seconds": 345.9, "mq138": 11.67, "mq3": 16.28}, {"seconds": 348.1, "mq138": 11.76, "mq3": 16.04}, {"seconds": 350.4, "mq138": 11.55, "mq3": 16.36}, {"seconds": 352.6, "mq138": 11.74, "mq3": 16.33}, {"seconds": 354.9, "mq138": 11.74, "mq3": 16.25}, {"seconds": 357.1, "mq138": 11.84, "mq3": 16.26}, {"seconds": 359.3, "mq138": 11.59, "mq3": 16.25}, {"seconds": 361.6, "mq138": 11.68, "mq3": 16.4}, {"seconds": 363.8, "mq138": 11.72, "mq3": 16.57}, {"seconds": 366.1, "mq138": 11.53, "mq3": 15.84}, {"seconds": 368.3, "mq138": 11.39, "mq3": 16.15}, {"seconds": 370.5, "mq138": 11.66, "mq3": 16.39}, {"seconds": 372.8, "mq138": 11.94, "mq3": 16.39}, {"seconds": 375.0, "mq138": 11.38, "mq3": 16.0}, {"seconds": 377.3, "mq138": 11.39, "mq3": 16.34}, {"seconds": 379.5, "mq138": 11.72, "mq3": 15.99}, {"seconds": 381.7, "mq138": 11.35, "mq3": 15.95}, {"seconds": 384.0, "mq138": 11.73, "mq3": 16.19}, {"seconds": 386.2, "mq138": 11.22, "mq3": 15.91}, {"seconds": 388.5, "mq138": 11.99, "mq3": 16.42}, {"seconds": 390.7, "mq138": 11.69, "mq3": 16.3}, {"seconds": 392.9, "mq138": 11.33, "mq3": 16.1}, {"seconds": 395.2, "mq138": 11.69, "mq3": 16.16}, {"seconds": 397.4, "mq138": 11.97, "mq3": 16.39}, {"seconds": 399.7, "mq138": 11.34, "mq3": 16.05}, {"seconds": 401.9, "mq138": 11.59, "mq3": 16.33}, {"seconds": 404.1, "mq138": 11.53, "mq3": 16.42}, {"seconds": 406.4, "mq138": 11.57, "mq3": 16.16}, {"seconds": 408.6, "mq138": 11.63, "mq3": 16.35}, {"seconds": 410.9, "mq138": 11.64, "mq3": 16.11}, {"seconds": 413.1, "mq138": 11.66, "mq3": 15.74}, {"seconds": 415.3, "mq138": 11.35, "mq3": 15.85}, {"seconds": 417.6, "mq138": 11.55, "mq3": 16.57}, {"seconds": 419.8, "mq138": 11.33, "mq3": 15.93}, {"seconds": 422.1, "mq138": 11.36, "mq3": 16.05}, {"seconds": 424.3, "mq138": 11.61, "mq3": 15.99}, {"seconds": 426.5, "mq138": 11.67, "mq3": 16.1}, {"seconds": 428.8, "mq138": 11.81, "mq3": 16.48}, {"seconds": 431.0, "mq138": 11.64, "mq3": 16.22}, {"seconds": 433.3, "mq138": 11.25, "mq3": 15.8}, {"seconds": 435.5, "mq138": 11.76, "mq3": 16.26}, {"seconds": 437.8, "mq138": 11.34, "mq3": 16.06}, {"seconds": 440.0, "mq138": 11.78, "mq3": 16.41}, {"seconds": 442.2, "mq138": 11.58, "mq3": 16.05}, {"seconds": 444.5, "mq138": 11.54, "mq3": 16.45}, {"seconds": 446.7, "mq138": 11.12, "mq3": 15.43}, {"seconds": 449.0, "mq138": 11.56, "mq3": 16.63}, {"seconds": 451.2, "mq138": 11.36, "mq3": 16.39}, {"seconds": 453.4, "mq138": 11.56, "mq3": 16.05}, {"seconds": 455.7, "mq138": 11.09, "mq3": 15.84}, {"seconds": 457.9, "mq138": 11.58, "mq3": 16.29}, {"seconds": 460.1, "mq138": 11.88, "mq3": 16.48}, {"seconds": 462.4, "mq138": 11.59, "mq3": 15.84}, {"seconds": 464.6, "mq138": 11.68, "mq3": 15.93}, {"seconds": 466.9, "mq138": 11.66, "mq3": 16.42}, {"seconds": 469.1, "mq138": 11.51, "mq3": 16.18}, {"seconds": 471.4, "mq138": 11.71, "mq3": 16.54}, {"seconds": 473.6, "mq138": 11.64, "mq3": 16.07}, {"seconds": 475.8, "mq138": 11.35, "mq3": 16.02}, {"seconds": 478.1, "mq138": 11.71, "mq3": 16.64}, {"seconds": 480.3, "mq138": 11.26, "mq3": 16.24}, {"seconds": 482.6, "mq138": 11.71, "mq3": 16.33}, {"seconds": 484.8, "mq138": 11.17, "mq3": 15.8}, {"seconds": 487.0, "mq138": 11.46, "mq3": 16.23}, {"seconds": 489.3, "mq138": 11.41, "mq3": 15.95}, {"seconds": 491.5, "mq138": 11.84, "mq3": 16.54}, {"seconds": 493.8, "mq138": 11.58, "mq3": 16.36}, {"seconds": 496.0, "mq138": 11.43, "mq3": 16.16}, {"seconds": 498.3, "mq138": 11.62, "mq3": 16.52}, {"seconds": 500.6, "mq138": 11.61, "mq3": 16.4}, {"seconds": 502.8, "mq138": 11.54, "mq3": 16.37}, {"seconds": 505.1, "mq138": 11.7, "mq3": 16.47}, {"seconds": 507.3, "mq138": 11.53, "mq3": 16.15}, {"seconds": 509.6, "mq138": 11.7, "mq3": 16.22}, {"seconds": 511.9, "mq138": 11.76, "mq3": 16.36}, {"seconds": 514.1, "mq138": 11.69, "mq3": 15.99}, {"seconds": 516.4, "mq138": 11.78, "mq3": 16.5}, {"seconds": 518.7, "mq138": 11.59, "mq3": 15.83}, {"seconds": 520.9, "mq138": 11.75, "mq3": 16.23}, {"seconds": 523.2, "mq138": 11.79, "mq3": 16.35}, {"seconds": 525.5, "mq138": 11.53, "mq3": 16.06}, {"seconds": 527.7, "mq138": 11.81, "mq3": 16.22}, {"seconds": 530.0, "mq138": 11.43, "mq3": 16.33}, {"seconds": 532.2, "mq138": 11.5, "mq3": 16.27}, {"seconds": 534.4, "mq138": 11.49, "mq3": 16.11}, {"seconds": 536.7, "mq138": 11.54, "mq3": 16.27}, {"seconds": 538.9, "mq138": 11.79, "mq3": 16.34}, {"seconds": 541.2, "mq138": 11.6, "mq3": 16.42}, {"seconds": 543.4, "mq138": 11.79, "mq3": 16.45}, {"seconds": 545.6, "mq138": 11.4, "mq3": 16.14}, {"seconds": 547.9, "mq138": 11.59, "mq3": 16.39}, {"seconds": 550.1, "mq138": 11.36, "mq3": 15.92}, {"seconds": 552.4, "mq138": 11.79, "mq3": 16.53}, {"seconds": 554.6, "mq138": 11.86, "mq3": 16.56}, {"seconds": 556.8, "mq138": 11.68, "mq3": 16.05}, {"seconds": 559.1, "mq138": 11.37, "mq3": 16.21}, {"seconds": 561.3, "mq138": 11.69, "mq3": 16.56}, {"seconds": 563.6, "mq138": 11.7, "mq3": 16.32}, {"seconds": 565.8, "mq138": 11.46, "mq3": 15.93}, {"seconds": 568.0, "mq138": 11.49, "mq3": 16.39}, {"seconds": 570.3, "mq138": 11.3, "mq3": 16.09}, {"seconds": 572.5, "mq138": 11.55, "mq3": 16.3}, {"seconds": 574.8, "mq138": 11.52, "mq3": 15.84}, {"seconds": 577.0, "mq138": 11.64, "mq3": 16.33}, {"seconds": 579.2, "mq138": 11.4, "mq3": 16.16}, {"seconds": 581.5, "mq138": 11.59, "mq3": 16.48}, {"seconds": 583.7, "mq138": 11.57, "mq3": 16.21}, {"seconds": 586.0, "mq138": 11.38, "mq3": 16.34}, {"seconds": 588.2, "mq138": 11.51, "mq3": 16.45}, {"seconds": 590.4, "mq138": 11.65, "mq3": 16.62}, {"seconds": 592.7, "mq138": 11.35, "mq3": 15.91}, {"seconds": 594.9, "mq138": 11.76, "mq3": 16.48}, {"seconds": 597.2, "mq138": 11.25, "mq3": 15.84}, {"seconds": 599.4, "mq138": 11.52, "mq3": 16.2}, {"seconds": 601.6, "mq138": 11.75, "mq3": 16.3}, {"seconds": 603.9, "mq138": 11.61, "mq3": 16.03}, {"seconds": 606.1, "mq138": 11.68, "mq3": 16.11}, {"seconds": 608.4, "mq138": 11.27, "mq3": 15.99}, {"seconds": 610.6, "mq138": 11.64, "mq3": 16.45}, {"seconds": 612.8, "mq138": 11.51, "mq3": 16.13}, {"seconds": 615.1, "mq138": 11.64, "mq3": 16.28}, {"seconds": 617.3, "mq138": 11.59, "mq3": 16.22}, {"seconds": 619.6, "mq138": 11.66, "mq3": 16.34}, {"seconds": 621.8, "mq138": 11.33, "mq3": 16.25}, {"seconds": 624.0, "mq138": 11.89, "mq3": 16.39}, {"seconds": 626.3, "mq138": 11.32, "mq3": 15.79}, {"seconds": 628.5, "mq138": 11.72, "mq3": 16.07}, {"seconds": 630.8, "mq138": 11.66, "mq3": 16.39}, {"seconds": 633.0, "mq138": 11.77, "mq3": 16.26}, {"seconds": 635.2, "mq138": 11.72, "mq3": 16.45}, {"seconds": 637.5, "mq138": 11.44, "mq3": 15.93}, {"seconds": 639.7, "mq138": 11.46, "mq3": 16.04}, {"seconds": 642.0, "mq138": 11.64, "mq3": 16.07}, {"seconds": 644.2, "mq138": 11.64, "mq3": 16.21}, {"seconds": 646.4, "mq138": 11.56, "mq3": 16.22}, {"seconds": 648.7, "mq138": 11.42, "mq3": 16.02}, {"seconds": 650.9, "mq138": 11.41, "mq3": 15.85}, {"seconds": 653.2, "mq138": 11.71, "mq3": 16.38}, {"seconds": 655.4, "mq138": 11.5, "mq3": 16.26}, {"seconds": 657.6, "mq138": 11.39, "mq3": 15.83}, {"seconds": 659.9, "mq138": 11.56, "mq3": 16.37}, {"seconds": 662.1, "mq138": 11.59, "mq3": 15.98}, {"seconds": 664.4, "mq138": 11.56, "mq3": 16.11}, {"seconds": 666.6, "mq138": 11.6, "mq3": 16.22}, {"seconds": 668.8, "mq138": 11.74, "mq3": 16.49}, {"seconds": 671.1, "mq138": 11.53, "mq3": 15.96}, {"seconds": 673.3, "mq138": 11.53, "mq3": 16.05}, {"seconds": 675.6, "mq138": 11.42, "mq3": 15.92}, {"seconds": 677.8, "mq138": 11.41, "mq3": 16.22}, {"seconds": 680.0, "mq138": 11.66, "mq3": 16.22}, {"seconds": 682.3, "mq138": 11.79, "mq3": 16.21}, {"seconds": 684.5, "mq138": 11.56, "mq3": 16.09}, {"seconds": 686.8, "mq138": 11.74, "mq3": 16.28}, {"seconds": 689.0, "mq138": 11.52, "mq3": 16.07}, {"seconds": 691.2, "mq138": 11.69, "mq3": 16.28}, {"seconds": 693.5, "mq138": 11.76, "mq3": 16.29}, {"seconds": 695.7, "mq138": 11.31, "mq3": 15.98}, {"seconds": 698.0, "mq138": 11.23, "mq3": 15.86}, {"seconds": 700.2, "mq138": 11.68, "mq3": 16.48}, {"seconds": 702.4, "mq138": 11.61, "mq3": 16.05}, {"seconds": 704.7, "mq138": 11.39, "mq3": 16.27}, {"seconds": 706.9, "mq138": 11.59, "mq3": 16.33}, {"seconds": 709.2, "mq138": 11.64, "mq3": 15.93}, {"seconds": 711.4, "mq138": 11.76, "mq3": 16.56}, {"seconds": 713.6, "mq138": 11.36, "mq3": 16.19}, {"seconds": 715.9, "mq138": 11.59, "mq3": 16.29}, {"seconds": 718.1, "mq138": 11.69, "mq3": 16.49}, {"seconds": 720.4, "mq138": 11.64, "mq3": 16.16}, {"seconds": 722.6, "mq138": 11.47, "mq3": 15.92}, {"seconds": 724.8, "mq138": 11.37, "mq3": 16.16}, {"seconds": 727.1, "mq138": 11.34, "mq3": 16.32}, {"seconds": 729.3, "mq138": 11.78, "mq3": 16.48}, {"seconds": 731.6, "mq138": 11.76, "mq3": 16.39}, {"seconds": 733.8, "mq138": 11.61, "mq3": 16.19}, {"seconds": 736.0, "mq138": 11.74, "mq3": 16.4}, {"seconds": 738.3, "mq138": 11.46, "mq3": 16.24}, {"seconds": 740.5, "mq138": 11.59, "mq3": 16.24}, {"seconds": 742.8, "mq138": 11.25, "mq3": 16.13}, {"seconds": 745.0, "mq138": 11.46, "mq3": 16.28}, {"seconds": 747.2, "mq138": 11.59, "mq3": 16.48}, {"seconds": 749.5, "mq138": 11.34, "mq3": 16.03}, {"seconds": 751.7, "mq138": 11.41, "mq3": 16.14}, {"seconds": 754.0, "mq138": 11.27, "mq3": 15.67}, {"seconds": 756.2, "mq138": 11.56, "mq3": 16.05}, {"seconds": 758.4, "mq138": 11.53, "mq3": 16.33}, {"seconds": 760.7, "mq138": 11.81, "mq3": 16.61}, {"seconds": 762.9, "mq138": 11.53, "mq3": 16.31}, {"seconds": 765.2, "mq138": 11.63, "mq3": 16.09}, {"seconds": 767.4, "mq138": 11.62, "mq3": 16.21}, {"seconds": 769.6, "mq138": 11.43, "mq3": 15.65}, {"seconds": 771.9, "mq138": 11.38, "mq3": 16.19}, {"seconds": 774.1, "mq138": 11.5, "mq3": 16.03}, {"seconds": 776.4, "mq138": 11.68, "mq3": 16.05}, {"seconds": 778.6, "mq138": 11.62, "mq3": 16.53}, {"seconds": 780.8, "mq138": 11.35, "mq3": 16.0}, {"seconds": 783.1, "mq138": 11.74, "mq3": 16.53}, {"seconds": 785.3, "mq138": 11.84, "mq3": 16.57}, {"seconds": 787.6, "mq138": 11.7, "mq3": 16.22}, {"seconds": 789.8, "mq138": 11.49, "mq3": 16.45}, {"seconds": 792.0, "mq138": 11.56, "mq3": 16.17}, {"seconds": 794.3, "mq138": 11.58, "mq3": 16.02}, {"seconds": 796.5, "mq138": 11.44, "mq3": 16.26}, {"seconds": 798.8, "mq138": 11.59, "mq3": 16.15}, {"seconds": 801.0, "mq138": 11.6, "mq3": 16.38}, {"seconds": 803.2, "mq138": 11.5, "mq3": 16.14}, {"seconds": 805.5, "mq138": 11.51, "mq3": 16.25}, {"seconds": 807.7, "mq138": 11.41, "mq3": 16.16}, {"seconds": 810.0, "mq138": 11.7, "mq3": 16.24}, {"seconds": 812.2, "mq138": 11.45, "mq3": 16.29}, {"seconds": 814.4, "mq138": 11.46, "mq3": 16.33}, {"seconds": 816.7, "mq138": 11.43, "mq3": 16.03}, {"seconds": 818.9, "mq138": 11.56, "mq3": 16.26}, {"seconds": 821.2, "mq138": 11.4, "mq3": 16.12}, {"seconds": 823.4, "mq138": 11.39, "mq3": 16.04}, {"seconds": 825.6, "mq138": 11.69, "mq3": 16.26}, {"seconds": 827.9, "mq138": 11.59, "mq3": 16.28}, {"seconds": 830.1, "mq138": 11.57, "mq3": 16.3}, {"seconds": 832.4, "mq138": 11.61, "mq3": 16.27}, {"seconds": 834.6, "mq138": 11.64, "mq3": 16.07}, {"seconds": 836.8, "mq138": 11.59, "mq3": 15.85}, {"seconds": 839.1, "mq138": 11.85, "mq3": 16.45}, {"seconds": 841.3, "mq138": 11.52, "mq3": 16.33}, {"seconds": 843.6, "mq138": 11.46, "mq3": 16.05}, {"seconds": 845.8, "mq138": 11.67, "mq3": 16.43}, {"seconds": 848.0, "mq138": 11.46, "mq3": 16.14}, {"seconds": 850.3, "mq138": 11.86, "mq3": 16.44}, {"seconds": 852.5, "mq138": 11.8, "mq3": 16.48}, {"seconds": 854.8, "mq138": 11.34, "mq3": 16.02}, {"seconds": 857.0, "mq138": 11.61, "mq3": 16.47}, {"seconds": 859.2, "mq138": 11.74, "mq3": 16.51}, {"seconds": 861.5, "mq138": 11.37, "mq3": 16.07}, {"seconds": 863.7, "mq138": 11.38, "mq3": 16.16}, {"seconds": 866.0, "mq138": 11.66, "mq3": 16.06}, {"seconds": 868.2, "mq138": 11.28, "mq3": 16.4}, {"seconds": 870.4, "mq138": 11.36, "mq3": 16.26}, {"seconds": 872.7, "mq138": 11.94, "mq3": 16.33}, {"seconds": 874.9, "mq138": 11.38, "mq3": 15.84}, {"seconds": 877.2, "mq138": 11.77, "mq3": 16.33}, {"seconds": 879.4, "mq138": 11.81, "mq3": 16.5}, {"seconds": 881.7, "mq138": 11.52, "mq3": 16.11}, {"seconds": 883.9, "mq138": 11.57, "mq3": 16.22}, {"seconds": 886.1, "mq138": 11.44, "mq3": 16.55}, {"seconds": 888.4, "mq138": 11.57, "mq3": 16.33}, {"seconds": 890.6, "mq138": 11.42, "mq3": 16.04}, {"seconds": 892.8, "mq138": 11.76, "mq3": 16.37}, {"seconds": 895.1, "mq138": 11.95, "mq3": 16.5}, {"seconds": 897.3, "mq138": 11.66, "mq3": 16.26}, {"seconds": 899.6, "mq138": 11.51, "mq3": 16.33}, {"seconds": 901.8, "mq138": 11.26, "mq3": 15.99}, {"seconds": 904.0, "mq138": 11.68, "mq3": 16.39}, {"seconds": 906.3, "mq138": 11.4, "mq3": 16.04}, {"seconds": 908.5, "mq138": 11.53, "mq3": 15.99}, {"seconds": 910.8, "mq138": 11.73, "mq3": 16.36}, {"seconds": 913.0, "mq138": 11.42, "mq3": 15.87}, {"seconds": 915.3, "mq138": 11.76, "mq3": 16.69}, {"seconds": 917.5, "mq138": 11.5, "mq3": 16.31}, {"seconds": 919.7, "mq138": 11.27, "mq3": 16.19}, {"seconds": 922.0, "mq138": 11.73, "mq3": 15.98}, {"seconds": 924.2, "mq138": 11.64, "mq3": 15.94}, {"seconds": 926.5, "mq138": 11.38, "mq3": 16.36}, {"seconds": 928.7, "mq138": 11.26, "mq3": 15.8}, {"seconds": 930.9, "mq138": 11.61, "mq3": 16.28}, {"seconds": 933.2, "mq138": 11.64, "mq3": 16.33}, {"seconds": 935.4, "mq138": 11.49, "mq3": 16.22}, {"seconds": 937.7, "mq138": 11.29, "mq3": 16.03}, {"seconds": 939.9, "mq138": 11.59, "mq3": 16.39}, {"seconds": 942.1, "mq138": 11.38, "mq3": 15.72}, {"seconds": 944.4, "mq138": 11.71, "mq3": 16.18}, {"seconds": 946.6, "mq138": 11.98, "mq3": 16.69}, {"seconds": 948.9, "mq138": 11.62, "mq3": 16.43}, {"seconds": 951.1, "mq138": 11.85, "mq3": 16.34}, {"seconds": 953.3, "mq138": 11.48, "mq3": 16.0}, {"seconds": 955.6, "mq138": 11.76, "mq3": 16.28}, {"seconds": 957.8, "mq138": 11.69, "mq3": 16.2}, {"seconds": 960.1, "mq138": 11.36, "mq3": 16.01}, {"seconds": 962.3, "mq138": 11.43, "mq3": 16.09}, {"seconds": 964.5, "mq138": 11.29, "mq3": 15.95}, {"seconds": 966.8, "mq138": 11.47, "mq3": 16.07}, {"seconds": 969.0, "mq138": 11.35, "mq3": 16.07}, {"seconds": 971.3, "mq138": 11.13, "mq3": 16.16}, {"seconds": 973.5, "mq138": 11.28, "mq3": 16.1}, {"seconds": 975.7, "mq138": 11.52, "mq3": 15.7}, {"seconds": 978.0, "mq138": 11.31, "mq3": 16.14}, {"seconds": 980.2, "mq138": 11.76, "mq3": 16.28}, {"seconds": 982.5, "mq138": 11.39, "mq3": 16.22}, {"seconds": 984.7, "mq138": 11.61, "mq3": 16.37}, {"seconds": 986.9, "mq138": 11.19, "mq3": 16.15}, {"seconds": 989.2, "mq138": 11.94, "mq3": 16.49}, {"seconds": 991.4, "mq138": 11.72, "mq3": 16.19}, {"seconds": 993.7, "mq138": 11.77, "mq3": 16.18}, {"seconds": 995.9, "mq138": 11.63, "mq3": 16.24}, {"seconds": 998.1, "mq138": 11.81, "mq3": 16.47}, {"seconds": 1000.4, "mq138": 11.48, "mq3": 16.22}, {"seconds": 1002.6, "mq138": 11.43, "mq3": 16.29}, {"seconds": 1004.9, "mq138": 11.41, "mq3": 15.98}, {"seconds": 1007.1, "mq138": 11.52, "mq3": 16.24}, {"seconds": 1009.3, "mq138": 11.58, "mq3": 16.09}, {"seconds": 1011.6, "mq138": 11.7, "mq3": 16.39}, {"seconds": 1013.8, "mq138": 11.3, "mq3": 16.43}, {"seconds": 1016.1, "mq138": 11.35, "mq3": 16.25}, {"seconds": 1018.3, "mq138": 11.65, "mq3": 16.45}, {"seconds": 1020.5, "mq138": 11.69, "mq3": 16.59}, {"seconds": 1022.8, "mq138": 11.55, "mq3": 15.93}, {"seconds": 1025.0, "mq138": 11.35, "mq3": 16.11}, {"seconds": 1027.3, "mq138": 11.24, "mq3": 16.22}, {"seconds": 1029.5, "mq138": 11.44, "mq3": 16.08}, {"seconds": 1031.7, "mq138": 11.37, "mq3": 16.07}, {"seconds": 1034.0, "mq138": 11.36, "mq3": 15.63}, {"seconds": 1036.2, "mq138": 11.27, "mq3": 16.22}, {"seconds": 1038.5, "mq138": 11.38, "mq3": 16.13}, {"seconds": 1040.7, "mq138": 11.7, "mq3": 16.11}, {"seconds": 1042.9, "mq138": 11.67, "mq3": 16.54}, {"seconds": 1045.2, "mq138": 11.66, "mq3": 16.36}, {"seconds": 1047.4, "mq138": 11.42, "mq3": 16.1}, {"seconds": 1049.7, "mq138": 11.53, "mq3": 16.53}, {"seconds": 1051.9, "mq138": 11.76, "mq3": 16.33}, {"seconds": 1054.1, "mq138": 11.76, "mq3": 16.3}, {"seconds": 1056.4, "mq138": 11.41, "mq3": 16.47}, {"seconds": 1058.6, "mq138": 11.66, "mq3": 16.33}, {"seconds": 1060.9, "mq138": 11.38, "mq3": 16.13}, {"seconds": 1063.1, "mq138": 11.66, "mq3": 16.01}, {"seconds": 1065.3, "mq138": 11.43, "mq3": 16.16}, {"seconds": 1067.6, "mq138": 11.85, "mq3": 16.48}, {"seconds": 1069.8, "mq138": 11.48, "mq3": 16.21}, {"seconds": 1072.1, "mq138": 11.66, "mq3": 16.0}, {"seconds": 1074.3, "mq138": 11.61, "mq3": 16.37}, {"seconds": 1076.5, "mq138": 11.83, "mq3": 16.22}, {"seconds": 1078.8, "mq138": 11.59, "mq3": 15.83}, {"seconds": 1081.0, "mq138": 11.47, "mq3": 16.28}, {"seconds": 1083.3, "mq138": 11.61, "mq3": 16.15}, {"seconds": 1085.5, "mq138": 11.46, "mq3": 15.73}, {"seconds": 1087.8, "mq138": 11.43, "mq3": 16.35}, {"seconds": 1090.0, "mq138": 11.37, "mq3": 15.96}, {"seconds": 1092.2, "mq138": 11.34, "mq3": 16.19}, {"seconds": 1094.5, "mq138": 11.4, "mq3": 16.39}, {"seconds": 1096.7, "mq138": 11.37, "mq3": 15.95}, {"seconds": 1099.0, "mq138": 11.43, "mq3": 16.04}, {"seconds": 1101.2, "mq138": 11.5, "mq3": 15.9}, {"seconds": 1103.4, "mq138": 11.64, "mq3": 16.45}, {"seconds": 1105.7, "mq138": 11.53, "mq3": 15.69}, {"seconds": 1107.9, "mq138": 11.69, "mq3": 16.25}, {"seconds": 1110.2, "mq138": 11.97, "mq3": 16.35}, {"seconds": 1112.4, "mq138": 11.48, "mq3": 16.18}, {"seconds": 1114.6, "mq138": 11.63, "mq3": 16.32}, {"seconds": 1116.9, "mq138": 11.4, "mq3": 16.03}, {"seconds": 1119.1, "mq138": 11.48, "mq3": 16.14}];
+
+  const READING_DELAY = 15000;
+  const TIMER_DURATION = 600;
+
+  let barRevealed = false;
+  let frozenMq138 = null, frozenMq3 = null;
+  let secondsLeft = TIMER_DURATION;
+  let dataIndex = 0;
+  const log = [];
+
+  // Thresholds per sensor
+  // Zone 0: No Risk  — MQ138 < 11.183,  MQ3 < 15.756  → green
+  // Zone 1: Low      — MQ138 < 11.766,  MQ3 < 16.472  → yellow
+  // Zone 2: Medium   — MQ138 < 12.35,   MQ3 < 17.19   → orange
+  // Zone 3: High     — above all thresholds             → red
+  const THRESHOLDS = {
+    mq138: [11.183, 11.766, 12.35],
+    mq3:   [15.756, 16.472, 17.19]
+  };
+  const ZONE_COLORS  = ['#1D9E75', '#C9B800', '#BA7517', '#A32D2D'];
+  const ZONE_LABELS  = ['no risk', 'low', 'medium', 'high'];
+  const ZONE_BADGES  = ['badge-none', 'badge-low', 'badge-med', 'badge-high'];
+
+  function formatTime(s) {
+    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  }
+
+  function getZone(mq138, mq3) {
+    // Use the worse (higher zone) of the two sensors
+    function sensorZone(val, thresholds) {
+      for (let i = 0; i < thresholds.length; i++) {
+        if (val < thresholds[i]) return i;
+      }
+      return thresholds.length;
+    }
+    return Math.max(sensorZone(mq138, THRESHOLDS.mq138), sensorZone(mq3, THRESHOLDS.mq3));
+  }
+
+  function getBarPct(mq138, mq3) {
+    // Map reading to 0-100% across the full range
+    // Full range: neg control avg (10.6 / 15.04) → high threshold (12.35 / 17.19)
+    const mq138Pct = (mq138 - 10.6) / (12.35 - 10.6);
+    const mq3Pct   = (mq3   - 15.04) / (17.19 - 15.04);
+    return Math.min(Math.max((mq138Pct + mq3Pct) / 2, 0), 1) * 100;
+  }
+
+  function revealBar(mq138, mq3) {
+    const zone = getZone(mq138, mq3);
+    const pct  = getBarPct(mq138, mq3);
+    const bar  = document.getElementById('bar-fill');
+    bar.style.width      = pct + '%';
+    bar.style.background = ZONE_COLORS[zone];
+    document.getElementById('bar-overlay').classList.add('hidden');
+    barRevealed = true;
+  }
+
+  function updateUI(temp, hum, mq138, mq3) {
+    document.getElementById('temp-val').innerHTML = temp.toFixed(1) + '<span class="metric-unit">°C</span>';
+    document.getElementById('hum-val').innerHTML = hum.toFixed(0) + '<span class="metric-unit">%</span>';
+    document.getElementById('mq138-val').textContent = mq138.toFixed(2);
+    document.getElementById('mq3-val').textContent = mq3.toFixed(2);
+
+    const zone = getZone(mq138, mq3);
+    const badge = document.getElementById('risk-badge');
+    badge.textContent  = ZONE_LABELS[zone];
+    badge.className    = 'risk-badge ' + ZONE_BADGES[zone];
+
+    if (!barRevealed) { frozenMq138 = mq138; frozenMq3 = mq3; }
+
+    const now = new Date();
+    const t = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('last-update').textContent = t;
+
+    log.unshift({ time: t, temp: temp.toFixed(1), hum: hum.toFixed(0), mq138: mq138.toFixed(2), mq3: mq3.toFixed(2), zone });
+    if (log.length > 8) log.pop();
+
+    document.getElementById('log-list').innerHTML = log.map(e => `
+      <div class="log-entry">
+        <span class="log-time">${e.time}</span>
+        <span class="log-temp">${e.temp}°C</span>
+        <span class="log-hum">${e.hum}%</span>
+        <span class="log-mq"><span class="conc-badge" style="background:${ZONE_COLORS[e.zone]}22;color:${ZONE_COLORS[e.zone]};">${e.mq138}</span></span>
+        <span class="log-mq"><span class="conc-badge" style="background:${ZONE_COLORS[e.zone]}22;color:${ZONE_COLORS[e.zone]};">${e.mq3}</span></span>
+      </div>`).join('');
+  }
+
+  function tick() {
+    if (dataIndex >= LIVE_DATA.length) dataIndex = 0;
+    const row = LIVE_DATA[dataIndex++];
+    // Use random temp/hum from reasonable ranges since CSV doesn't have per-row temp/hum
+    const temp = 22 + Math.random() * 6;
+    const hum = 55 + Math.random() * 25;
+    updateUI(temp, hum, row.mq138, row.mq3);
+  }
+
+  // Overlay countdown
+  let overlayCount = 15;
+  const overlayEl = document.getElementById('overlay-countdown');
+  const overlayInterval = setInterval(() => {
+    overlayCount--;
+    if (overlayCount > 0) overlayEl.textContent = overlayCount;
+    else clearInterval(overlayInterval);
+  }, 1000);
+
+  setTimeout(() => revealBar(frozenMq138, frozenMq3), READING_DELAY);
+
+  const timerEl = document.getElementById('timer-badge');
+  const timerInterval = setInterval(() => {
+    secondsLeft--;
+    timerEl.textContent = formatTime(secondsLeft);
+    if (secondsLeft <= 0) { clearInterval(timerInterval); timerEl.textContent = '00:00'; }
+  }, 1000);
+
+  const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwbH2-ktaNYTlvPNlEpqPC_jEHFY7B_VjCMz6dhQZ8r6jIe7nS8Yj4s4V21Y1_Z7DGNpA/exec";
+
+  async function fetchLiveData() {
+    try {
+      const res = await fetch(SHEETS_URL + '?t=' + Date.now());
+      const data = await res.json();
+      updateUI(data.temp, data.hum, data.mq138, data.mq3);
+    } catch (err) {
+      console.error("Fetch failed:", err);
+    }
+  }
+
+  fetchLiveData();
+  setInterval(fetchLiveData, 3000);
+
+  window.injectArduinoData = (temp, hum, mq138, mq3) => updateUI(temp, hum, mq138, mq3);
+</script>
+</body>
+</html>
